@@ -18,3 +18,6 @@ Refer to [README](google_adk_agent/README.md)
 
 ## Example 4: LangGraph React Agent
 Refer to [README](langgraph_react_agent/README.md)
+
+## Example 5: MCP Server
+Refer to [README](mcp_server_example/README.md)

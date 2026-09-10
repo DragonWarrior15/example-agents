@@ -1,7 +1,5 @@
 """Trace a few simple functions in phoenix."""
 
-from typing import List
-
 from phoenix.otel import register
 
 tracer_provider = register(protocol="http/protobuf", project_name="sample-phoenix-trace")
@@ -13,7 +11,7 @@ def add_two_numbers(a: int, b: int) -> int:
 
 
 @tracer.chain
-def calculate_sum_of_list(nums: List[int]):
+def calculate_sum_of_list(nums: list[int]):
     if not nums:
         return 0
     if len(nums) == 1:
