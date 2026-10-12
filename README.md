@@ -21,3 +21,6 @@ Refer to [README](langgraph_react_agent/README.md)
 
 ## Example 5: MCP Server
 Refer to [README](mcp_server_example/README.md)
+
+## Example 6
+Refer to [README](llm_structured_output/README.md)

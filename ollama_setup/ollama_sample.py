@@ -1,6 +1,4 @@
-import ollama
-
-from ollama import chat, ChatResponse
+from ollama import ChatResponse, chat
 
 response: ChatResponse = chat(
     model="qwen3.5:9b",
