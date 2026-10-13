@@ -6,30 +6,32 @@ from ollama import ChatResponse, chat
 from pydantic import BaseModel, Field
 
 TRIAGE_PROMPT = """
-You are an expert customer support triage agent. Given a customer support request, produce the following in a structured JSON format
+You classify customer-support requests.
 
-- reason
-    - short explanation
-- category
-    - billing
-    - technical
-    - account_access
-    - cancellation
-    - other
-- priority
-    - low
-    - medium
-    - high
-- requires_human_review
-    - boolean
+Return exactly one JSON object with these fields:
+- reason: non-empty explanation, maximum 50 characters
+- category: billing | technical | account_access | cancellation | other
+- priority: low | medium | high
+- requires_human_review: boolean
 
-Useful semantic rules:
-- other should require human review.
-- Suspected account compromise should be high priority.
-- Cancellation does not automatically mean high priority.
-- The reason must be present but short.
+Category policy:
+- billing: charges, invoices, payments, or refunds
+- technical: application failures, outages, or defects
+- account_access: login, password, lockout, or unauthorized access
+- cancellation: ending a subscription, trial, or account
+- other: requests outside the categories above
 
-You will be provided the user query next.
+Priority policy:
+- low: informational, cosmetic, or non-urgent
+- medium: materially affects one customer or has a near deadline
+- high: suspected security compromise or critical/widespread outage
+
+Human-review policy:
+- true for category=other
+- true for suspected account compromise
+- otherwise false
+
+Return JSON only. Do not use Markdown fences or add commentary.
 """
 
 
