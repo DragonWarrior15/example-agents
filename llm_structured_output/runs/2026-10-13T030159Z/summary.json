@@ -1,0 +1,13 @@
+{
+  "total_cases": 20,
+  "evaluated_cases": 20,
+  "pending_cases": 0,
+  "valid_results": 19,
+  "terminal_failures": 1,
+  "first_attempt_successes": 0,
+  "retry_successes": 0,
+  "unknown_attempt_counts": 20,
+  "category_accuracy": 0.95,
+  "priority_accuracy": 0.7,
+  "human_review_accuracy": 0.95
+}

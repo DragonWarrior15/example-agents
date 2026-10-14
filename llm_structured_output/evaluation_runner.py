@@ -48,7 +48,7 @@ class EvaluationResult(BaseModel):
     input: str
     expected: EvaluationDataFields
     actual: EvaluationDataFields | None
-    loop_count: int
+    loop_count: int | None
     error: str | None
 
 
@@ -60,6 +60,7 @@ class EvaluationSummary(BaseModel):
     terminal_failures: int
     first_attempt_successes: int
     retry_successes: int
+    unknown_attempt_counts: int
     category_accuracy: float
     priority_accuracy: float
     human_review_accuracy: float
@@ -76,6 +77,7 @@ class Manifest(BaseModel):
     started_at: str
     status: str
     completed_at: str | None = None
+    notes: str = ""
 
 
 def build_and_save_manifest(
@@ -90,7 +92,7 @@ def build_and_save_manifest(
     eval_data = read_evaluation_data(evaluation_data_file_name)
 
     manifest = Manifest(
-        run_id=now_dt.strftime("%Y-%m-%dT%H%M%S%fZ"),
+        run_id=now_dt.strftime("%Y-%m-%dT%H%M%SZ"),
         prompt_file=prompt_file_name,
         model=model_name,
         dataset_file=evaluation_data_file_name,
@@ -222,8 +224,13 @@ def build_and_save_summary(manifest: Manifest) -> EvaluationSummary:
             for result in evaluation_results
         ),
         retry_successes=sum(
-            result.actual is not None and result.loop_count > 1
+            result.actual is not None
+            and result.loop_count is not None
+            and result.loop_count > 1
             for result in evaluation_results
+        ),
+        unknown_attempt_counts=sum(
+            result.loop_count is None for result in evaluation_results
         ),
         category_accuracy=category_accuracy,
         priority_accuracy=priority_accuracy,
