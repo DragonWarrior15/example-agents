@@ -179,32 +179,41 @@ def build_and_save_summary(manifest: Manifest) -> EvaluationSummary:
     if total_cases == 0:
         raise ValueError("Cannot summarize an empty evaluation dataset.")
 
-    category_accuracy = sum(
-        [
-            case.actual is not None
-            and case.expected.category == case.actual.category
-            for case in evaluation_results
-        ]
-    ) / total_cases
+    category_accuracy = (
+        sum(
+            [
+                case.actual is not None
+                and case.expected.category == case.actual.category
+                for case in evaluation_results
+            ]
+        )
+        / total_cases
+    )
     logger.info(f"CATEGORY ACCURACY: {category_accuracy}")
 
-    priority_accuracy = sum(
-        [
-            case.actual is not None
-            and case.expected.priority == case.actual.priority
-            for case in evaluation_results
-        ]
-    ) / total_cases
+    priority_accuracy = (
+        sum(
+            [
+                case.actual is not None
+                and case.expected.priority == case.actual.priority
+                for case in evaluation_results
+            ]
+        )
+        / total_cases
+    )
     logger.info(f"PRIORITY ACCURACY: {priority_accuracy}")
 
-    review_accuracy = sum(
-        [
-            case.actual is not None
-            and case.expected.requires_human_review
-            == case.actual.requires_human_review
-            for case in evaluation_results
-        ]
-    ) / total_cases
+    review_accuracy = (
+        sum(
+            [
+                case.actual is not None
+                and case.expected.requires_human_review
+                == case.actual.requires_human_review
+                for case in evaluation_results
+            ]
+        )
+        / total_cases
+    )
     logger.info(f"REQUIRES HUMAN REVIEW ACCURACY: {review_accuracy}")
 
     valid_results = sum(
@@ -272,9 +281,7 @@ def print_misclassified_examples(run_id: str):
 
     for result in evaluation_results:
         if result.actual is None:
-            logger.info(
-                f"TERMINAL FAILURE at ID {result.id}: {result.error}"
-            )
+            logger.info(f"TERMINAL FAILURE at ID {result.id}: {result.error}")
         elif result.expected.priority != result.actual.priority:
             logger.info(
                 f"PRIORITY MISMATCH at ID {result.id}: \n"
@@ -315,8 +322,9 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--model-name",
-        choices=["qwen3.5:9b"],
-        help="Model name, must be one of [qwen3.5:9b], default is qwen3.5:9b",
+        choices=["qwen3.5:9b", "qwen3.5:4b-mlx"],
+        help="Model name, must be one of [qwen3.5:9b, qwen3.5:4b-mlx], "
+        "default is qwen3.5:9b",
         default="qwen3.5:9b",
         required=False,
     )
