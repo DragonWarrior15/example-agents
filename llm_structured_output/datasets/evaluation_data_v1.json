@@ -76,7 +76,7 @@
     "input": "I forgot my password and need help resetting it.",
     "expected": {
       "category": "account_access",
-      "priority": "low",
+      "priority": "medium",
       "requires_human_review": false
     }
   },
@@ -127,7 +127,7 @@
   },
   {
     "id": "cancellation_trial",
-    "input": "I do not want to continue after the free trial. Please cancel it.",
+    "input": "I do not want to continue after the free trial which ends next month. Please cancel it.",
     "expected": {
       "category": "cancellation",
       "priority": "low",
@@ -175,7 +175,7 @@
     "input": "Where is customer data stored, and what is your retention policy?",
     "expected": {
       "category": "other",
-      "priority": "medium",
+      "priority": "low",
       "requires_human_review": true
     }
   }

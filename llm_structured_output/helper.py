@@ -1,38 +1,10 @@
 """Helper utilities for classifier."""
 
 from enum import Enum
+from pathlib import Path
 
 from ollama import ChatResponse, chat
 from pydantic import BaseModel, Field
-
-TRIAGE_PROMPT = """
-You classify customer-support requests.
-
-Return exactly one JSON object with these fields:
-- reason: non-empty explanation, maximum 50 characters
-- category: billing | technical | account_access | cancellation | other
-- priority: low | medium | high
-- requires_human_review: boolean
-
-Category policy:
-- billing: charges, invoices, payments, or refunds
-- technical: application failures, outages, or defects
-- account_access: login, password, lockout, or unauthorized access
-- cancellation: ending a subscription, trial, or account
-- other: requests outside the categories above
-
-Priority policy:
-- low: informational, cosmetic, or non-urgent
-- medium: materially affects one customer or has a near deadline
-- high: suspected security compromise or critical/widespread outage
-
-Human-review policy:
-- true for category=other
-- true for suspected account compromise
-- otherwise false
-
-Return JSON only. Do not use Markdown fences or add commentary.
-"""
 
 
 class CategoryEnum(str, Enum):
@@ -106,13 +78,23 @@ def validate_triage_output_values(triage_output: TriageOutput) -> bool:
     return True
 
 
-def form_messages(user_query: str, error_parsing: str | None) -> list[dict]:
+def get_system_prompt(prompt_file_name: str) -> str:
+    """Helper to get read the system prompt from file."""
+    prompt_full_path = (
+        Path(__file__).parent.joinpath("prompts").joinpath(prompt_file_name)
+    )
+    return prompt_full_path.read_text()
+
+
+def form_messages(
+    user_query: str, system_prompt: str, error_parsing: str | None
+) -> list[dict]:
     """Helper to form the messages for chat input."""
     return (
         [
             {
                 "role": "system",
-                "content": TRIAGE_PROMPT,
+                "content": system_prompt,
             }
         ]
         + (
@@ -134,27 +116,32 @@ def form_messages(user_query: str, error_parsing: str | None) -> list[dict]:
     )
 
 
-def run_llm_and_get_response_content(messages: list) -> str:
+def run_llm_and_get_response_content(messages: list, model_name: str) -> str:
     """Run the messages through LLM and parse the output."""
     response: ChatResponse = chat(
-        model="qwen3.5:9b",
+        model=model_name,
         messages=messages,
         stream=False,
+        think=False,
+        keep_alive="30m",
     )
 
     return response.message.content
 
 
-def run_llm_loop(user_query: str) -> LoopOutput:
+def run_llm_loop(
+    user_query: str, prompt_file_name: str, model_name: str
+) -> LoopOutput:
     """Run the loop for getting the triage output."""
 
     loop_output = None
     error_parsing = None
+    system_prompt = get_system_prompt(prompt_file_name)
 
     for step in [1, 2]:
-        messages = form_messages(user_query, error_parsing)
+        messages = form_messages(user_query, system_prompt, error_parsing)
 
-        chat_response = run_llm_and_get_response_content(messages)
+        chat_response = run_llm_and_get_response_content(messages, model_name)
 
         response_parsed, error_parsing = parse_output(chat_response)
 
@@ -169,3 +156,13 @@ def run_llm_loop(user_query: str) -> LoopOutput:
             break
 
     return loop_output
+
+
+def read_evaluation_data(evaluation_data_file_name: str) -> Path:
+    """Gets the path object for evaluation data file name."""
+    return (
+        Path(__file__)
+        .parent.joinpath("datasets")
+        .joinpath(evaluation_data_file_name)
+        .read_text()
+    )

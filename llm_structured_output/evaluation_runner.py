@@ -5,16 +5,24 @@ to calculate standard classification metrics.
 """
 
 import argparse
+import hashlib
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 
-from helper import CategoryEnum, PriorityEnum, run_llm_loop
+from helper import (
+    CategoryEnum,
+    PriorityEnum,
+    get_system_prompt,
+    read_evaluation_data,
+    run_llm_loop,
+)
 from pydantic import BaseModel, TypeAdapter
 
-DATASET_PATH_EVALUATION_DATA = Path(__file__).with_name("evaluation_data.json")
-DATASET_PATH_EVALUATION_RESULTS = Path(__file__).with_name(
-    "evaluation_output.json"
-)
+RUNS_DIRECTORY = Path(__file__).with_name("runs")
+MANIFEST_FILE_NAME = "manifest.json"
+EVALUATION_RESULTS_FILE_NAME = "evaluation_results.jsonl"
+SUMMARY_FILE_NAME = "summary.json"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,86 +45,233 @@ class EvaluationData(BaseModel):
 
 class EvaluationResult(BaseModel):
     id: str
+    input: str
     expected: EvaluationDataFields
-    actual: EvaluationDataFields
+    actual: EvaluationDataFields | None
+    loop_count: int
+    error: str | None
 
 
-def run_evaluation():
+class EvaluationSummary(BaseModel):
+    total_cases: int
+    evaluated_cases: int
+    pending_cases: int
+    valid_results: int
+    terminal_failures: int
+    first_attempt_successes: int
+    retry_successes: int
+    category_accuracy: float
+    priority_accuracy: float
+    human_review_accuracy: float
+
+
+class Manifest(BaseModel):
+    run_id: str
+    prompt_file: str
+    model: str
+    dataset_file: str
+    max_attempts: int
+    prompt_hash: str
+    dataset_hash: str
+    started_at: str
+    status: str
+    completed_at: str | None = None
+
+
+def build_and_save_manifest(
+    prompt_file_name: str, model_name: str, evaluation_data_file_name: str
+) -> Manifest:
+    """Build and saves the manifest."""
+    # fix the time
+    now_dt = datetime.now(timezone.utc)
+
+    # read the prompt and eval data
+    prompt = get_system_prompt(prompt_file_name)
+    eval_data = read_evaluation_data(evaluation_data_file_name)
+
+    manifest = Manifest(
+        run_id=now_dt.strftime("%Y-%m-%dT%H%M%S%fZ"),
+        prompt_file=prompt_file_name,
+        model=model_name,
+        dataset_file=evaluation_data_file_name,
+        max_attempts=2,
+        prompt_hash=hashlib.sha256(prompt.encode()).hexdigest(),
+        dataset_hash=hashlib.sha256(eval_data.encode()).hexdigest(),
+        started_at=now_dt.isoformat(),
+        status="running",
+    )
+
+    run_directory = RUNS_DIRECTORY / manifest.run_id
+    run_directory.mkdir(parents=True, exist_ok=False)
+    (run_directory / MANIFEST_FILE_NAME).write_text(
+        manifest.model_dump_json(indent=2)
+    )
+
+    # return the manifest for downstream consumption
+    return manifest
+
+
+def read_evaluation_results(manifest: Manifest) -> list[EvaluationResult]:
+    """Read all persisted case results for a run."""
+    results_path = (
+        RUNS_DIRECTORY / manifest.run_id / EVALUATION_RESULTS_FILE_NAME
+    )
+    if not results_path.exists():
+        return []
+
+    return [
+        EvaluationResult.model_validate_json(line)
+        for line in results_path.read_text().splitlines()
+        if line.strip()
+    ]
+
+
+def run_evaluation(manifest: Manifest) -> None:
+    """Run inference and persist each case result incrementally."""
     # read the evaluation dataset
     evaluation_dataset = TypeAdapter(list[EvaluationData]).validate_json(
-        DATASET_PATH_EVALUATION_DATA.read_text()
+        read_evaluation_data(manifest.dataset_file)
     )
 
     # for each case in the evaluation dataset, generate the outputs and build
     # the EvaluationResult instance
-    evaluation_results: list[EvaluationResult] = []
+    run_directory = RUNS_DIRECTORY / manifest.run_id
+    results_path = run_directory / EVALUATION_RESULTS_FILE_NAME
 
-    for case in evaluation_dataset:
-        loop_output = run_llm_loop(case.input)
+    with results_path.open("a") as results_file:
+        for case in evaluation_dataset:
+            loop_output = run_llm_loop(
+                case.input, manifest.prompt_file, manifest.model
+            )
 
-        if loop_output.response:
-            case_result = EvaluationResult(
-                id=case.id,
-                expected=case.expected,
-                actual=EvaluationDataFields(
+            actual = None
+            if loop_output.response is not None:
+                actual = EvaluationDataFields(
                     category=loop_output.response.category,
                     priority=loop_output.response.priority,
                     requires_human_review=loop_output.response.requires_human_review,
-                ),
+                )
+
+            case_result = EvaluationResult(
+                id=case.id,
+                input=case.input,
+                expected=case.expected,
+                actual=actual,
+                loop_count=loop_output.loop_count,
+                error=loop_output.error_parsing,
             )
+            # Persist each result immediately so interrupted runs retain their
+            # completed cases. Each line is an independent JSON document.
+            results_file.write(case_result.model_dump_json() + "\n")
+            results_file.flush()
 
-            evaluation_results.append(case_result)
 
-    # save the results back to a json
-    adapter = TypeAdapter(list[EvaluationResult])
-    json_text = adapter.dump_json(evaluation_results, indent=2).decode()
-    DATASET_PATH_EVALUATION_RESULTS.write_text(json_text)
+def build_and_save_summary(manifest: Manifest) -> EvaluationSummary:
+    """Calculate and persist summary statistics for an existing run."""
+    run_directory = RUNS_DIRECTORY / manifest.run_id
+    evaluation_dataset = TypeAdapter(list[EvaluationData]).validate_json(
+        read_evaluation_data(manifest.dataset_file)
+    )
+    evaluation_results = read_evaluation_results(manifest)
+    total_cases = len(evaluation_dataset)
+    if total_cases == 0:
+        raise ValueError("Cannot summarize an empty evaluation dataset.")
 
-    # get summary statistics, divide by len(evaluation_dataset) to account for
-    # incorrect/failed responses also
-
-    # category accuracy
     category_accuracy = sum(
         [
-            case.expected.category == case.actual.category
+            case.actual is not None
+            and case.expected.category == case.actual.category
             for case in evaluation_results
         ]
-    ) / len(evaluation_dataset)
+    ) / total_cases
     logger.info(f"CATEGORY ACCURACY: {category_accuracy}")
 
-    # priority accuracy
     priority_accuracy = sum(
         [
-            case.expected.priority == case.actual.priority
+            case.actual is not None
+            and case.expected.priority == case.actual.priority
             for case in evaluation_results
         ]
-    ) / len(evaluation_dataset)
+    ) / total_cases
     logger.info(f"PRIORITY ACCURACY: {priority_accuracy}")
 
-    # priority accuracy
     review_accuracy = sum(
         [
-            case.expected.requires_human_review
+            case.actual is not None
+            and case.expected.requires_human_review
             == case.actual.requires_human_review
             for case in evaluation_results
         ]
-    ) / len(evaluation_dataset)
+    ) / total_cases
     logger.info(f"REQUIRES HUMAN REVIEW ACCURACY: {review_accuracy}")
 
-def print_misclassified_examples():
-    evaluation_results = TypeAdapter(list[EvaluationResult]).validate_json(
-        DATASET_PATH_EVALUATION_RESULTS.read_text()
+    valid_results = sum(
+        result.actual is not None for result in evaluation_results
+    )
+    evaluated_cases = len(evaluation_results)
+    summary = EvaluationSummary(
+        total_cases=total_cases,
+        evaluated_cases=evaluated_cases,
+        pending_cases=max(total_cases - evaluated_cases, 0),
+        valid_results=valid_results,
+        terminal_failures=sum(
+            result.actual is None for result in evaluation_results
+        ),
+        first_attempt_successes=sum(
+            result.actual is not None and result.loop_count == 1
+            for result in evaluation_results
+        ),
+        retry_successes=sum(
+            result.actual is not None and result.loop_count > 1
+            for result in evaluation_results
+        ),
+        category_accuracy=category_accuracy,
+        priority_accuracy=priority_accuracy,
+        human_review_accuracy=review_accuracy,
+    )
+    (run_directory / SUMMARY_FILE_NAME).write_text(
+        summary.model_dump_json(indent=2)
     )
 
-    evaluation_dataset = TypeAdapter(list[EvaluationData]).validate_json(
-        DATASET_PATH_EVALUATION_DATA.read_text()
+    expected_ids = {case.id for case in evaluation_dataset}
+    result_ids = [result.id for result in evaluation_results]
+    run_is_complete = (
+        len(result_ids) == len(set(result_ids))
+        and set(result_ids) == expected_ids
     )
+    completed_manifest = manifest.model_copy(
+        update={
+            "status": "completed" if run_is_complete else "incomplete",
+            "completed_at": (
+                datetime.now(timezone.utc).isoformat()
+                if run_is_complete
+                else None
+            ),
+        }
+    )
+    (run_directory / MANIFEST_FILE_NAME).write_text(
+        completed_manifest.model_dump_json(indent=2)
+    )
+    logger.info(f"RUN ARTIFACTS: {run_directory}")
+    return summary
+
+
+def print_misclassified_examples(run_id: str):
+    run_directory = RUNS_DIRECTORY / run_id
+    manifest = Manifest.model_validate_json(
+        (run_directory / MANIFEST_FILE_NAME).read_text()
+    )
+    evaluation_results = read_evaluation_results(manifest)
 
     for result in evaluation_results:
-        if result.expected.priority != result.actual.priority:
+        if result.actual is None:
+            logger.info(
+                f"TERMINAL FAILURE at ID {result.id}: {result.error}"
+            )
+        elif result.expected.priority != result.actual.priority:
             logger.info(
                 f"PRIORITY MISMATCH at ID {result.id}: \n"
-                f"User Query: {[dataset.input for dataset in evaluation_dataset if dataset.id == result.id]}\n"
+                f"User Query: {result.input}\n"
                 f"Expected {result.expected.priority}\n"
                 f", got {result.actual.priority}"
             )
@@ -126,21 +281,61 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Run or inspect the customer-support triage evaluation."
     )
-    subparsers = parser.add_subparsers(dest="command", required=True)
 
-    subparsers.add_parser(
-        "run",
-        help="Run the evaluation and save its results.",
+    parser.add_argument(
+        "--run-type",
+        choices=["run", "mismatches"],
+        help="Run type, must be one of run or mismatches. "
+        "Use run to run evaluation and save results, use mismatches to print "
+        "priority mismatches from the saved evaluation results.",
+        required=True,
     )
-    subparsers.add_parser(
-        "mismatches",
-        help="Print priority mismatches from the saved evaluation results.",
+
+    parser.add_argument(
+        "--prompt-file-name",
+        choices=["prompt_v1.md", "prompt_v2.md"],
+        help="Prompt file name, must be one of [prompt_v1.md, prompt_v2.md]",
+        required=False,
+    )
+
+    parser.add_argument(
+        "--evaluation-data-file-name",
+        choices=["evaluation_data_v1.json"],
+        help="Evaluation data file name, must be one of "
+        "[evaluation_data_v1.json]",
+        required=False,
+    )
+
+    parser.add_argument(
+        "--model-name",
+        choices=["qwen3.5:9b"],
+        help="Model name, must be one of [qwen3.5:9b], default is qwen3.5:9b",
+        default="qwen3.5:9b",
+        required=False,
+    )
+
+    parser.add_argument(
+        "--run-id",
+        help="Existing run ID to inspect when --run-type=mismatches.",
+        required=False,
     )
 
     args = parser.parse_args()
 
-    if args.command == "run":
-        run_evaluation()
-    elif args.command == "mismatches":
-        print_misclassified_examples()
-    
+    if args.run_type == "run":
+        if not args.prompt_file_name or not args.evaluation_data_file_name:
+            parser.error(
+                "--prompt-file-name and --evaluation-data-file-name are "
+                "required when --run-type=run"
+            )
+        manifest = build_and_save_manifest(
+            prompt_file_name=args.prompt_file_name,
+            model_name=args.model_name,
+            evaluation_data_file_name=args.evaluation_data_file_name,
+        )
+        run_evaluation(manifest)
+        build_and_save_summary(manifest)
+    elif args.run_type == "mismatches":
+        if not args.run_id:
+            parser.error("--run-id is required when --run-type=mismatches")
+        print_misclassified_examples(args.run_id)
