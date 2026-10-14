@@ -1,0 +1,249 @@
+[
+  {
+    "id": "billing_duplicate_charge",
+    "expected": {
+      "category": "billing",
+      "priority": "medium",
+      "requires_human_review": false
+    },
+    "actual": {
+      "category": "billing",
+      "priority": "medium",
+      "requires_human_review": false
+    }
+  },
+  {
+    "id": "billing_invoice_copy",
+    "expected": {
+      "category": "billing",
+      "priority": "low",
+      "requires_human_review": false
+    },
+    "actual": {
+      "category": "billing",
+      "priority": "low",
+      "requires_human_review": false
+    }
+  },
+  {
+    "id": "billing_wrong_plan_charge",
+    "expected": {
+      "category": "billing",
+      "priority": "medium",
+      "requires_human_review": false
+    },
+    "actual": {
+      "category": "billing",
+      "priority": "medium",
+      "requires_human_review": false
+    }
+  },
+  {
+    "id": "billing_refund_missing",
+    "expected": {
+      "category": "billing",
+      "priority": "medium",
+      "requires_human_review": false
+    },
+    "actual": {
+      "category": "billing",
+      "priority": "medium",
+      "requires_human_review": false
+    }
+  },
+  {
+    "id": "technical_upload_crash",
+    "expected": {
+      "category": "technical",
+      "priority": "medium",
+      "requires_human_review": false
+    },
+    "actual": {
+      "category": "technical",
+      "priority": "medium",
+      "requires_human_review": false
+    }
+  },
+  {
+    "id": "technical_cosmetic_issue",
+    "expected": {
+      "category": "technical",
+      "priority": "low",
+      "requires_human_review": false
+    },
+    "actual": {
+      "category": "technical",
+      "priority": "low",
+      "requires_human_review": false
+    }
+  },
+  {
+    "id": "technical_export_failure",
+    "expected": {
+      "category": "technical",
+      "priority": "medium",
+      "requires_human_review": false
+    },
+    "actual": {
+      "category": "technical",
+      "priority": "medium",
+      "requires_human_review": false
+    }
+  },
+  {
+    "id": "account_password_reset",
+    "expected": {
+      "category": "account_access",
+      "priority": "low",
+      "requires_human_review": false
+    },
+    "actual": {
+      "category": "account_access",
+      "priority": "medium",
+      "requires_human_review": false
+    }
+  },
+  {
+    "id": "account_locked",
+    "expected": {
+      "category": "account_access",
+      "priority": "medium",
+      "requires_human_review": false
+    },
+    "actual": {
+      "category": "account_access",
+      "priority": "medium",
+      "requires_human_review": false
+    }
+  },
+  {
+    "id": "account_suspected_compromise",
+    "expected": {
+      "category": "account_access",
+      "priority": "high",
+      "requires_human_review": true
+    },
+    "actual": {
+      "category": "account_access",
+      "priority": "high",
+      "requires_human_review": true
+    }
+  },
+  {
+    "id": "account_email_changed",
+    "expected": {
+      "category": "account_access",
+      "priority": "high",
+      "requires_human_review": true
+    },
+    "actual": {
+      "category": "account_access",
+      "priority": "high",
+      "requires_human_review": true
+    }
+  },
+  {
+    "id": "cancellation_future_renewal",
+    "expected": {
+      "category": "cancellation",
+      "priority": "low",
+      "requires_human_review": false
+    },
+    "actual": {
+      "category": "cancellation",
+      "priority": "medium",
+      "requires_human_review": false
+    }
+  },
+  {
+    "id": "cancellation_renews_tomorrow",
+    "expected": {
+      "category": "cancellation",
+      "priority": "medium",
+      "requires_human_review": false
+    },
+    "actual": {
+      "category": "cancellation",
+      "priority": "medium",
+      "requires_human_review": false
+    }
+  },
+  {
+    "id": "cancellation_trial",
+    "expected": {
+      "category": "cancellation",
+      "priority": "low",
+      "requires_human_review": false
+    },
+    "actual": {
+      "category": "cancellation",
+      "priority": "medium",
+      "requires_human_review": false
+    }
+  },
+  {
+    "id": "cancellation_account_closure",
+    "expected": {
+      "category": "cancellation",
+      "priority": "low",
+      "requires_human_review": false
+    },
+    "actual": {
+      "category": "cancellation",
+      "priority": "medium",
+      "requires_human_review": false
+    }
+  },
+  {
+    "id": "other_education_discount",
+    "expected": {
+      "category": "other",
+      "priority": "low",
+      "requires_human_review": true
+    },
+    "actual": {
+      "category": "other",
+      "priority": "low",
+      "requires_human_review": true
+    }
+  },
+  {
+    "id": "other_feature_request",
+    "expected": {
+      "category": "other",
+      "priority": "low",
+      "requires_human_review": true
+    },
+    "actual": {
+      "category": "other",
+      "priority": "low",
+      "requires_human_review": true
+    }
+  },
+  {
+    "id": "other_sales_question",
+    "expected": {
+      "category": "other",
+      "priority": "low",
+      "requires_human_review": true
+    },
+    "actual": {
+      "category": "other",
+      "priority": "low",
+      "requires_human_review": true
+    }
+  },
+  {
+    "id": "other_privacy_question",
+    "expected": {
+      "category": "other",
+      "priority": "medium",
+      "requires_human_review": true
+    },
+    "actual": {
+      "category": "other",
+      "priority": "low",
+      "requires_human_review": true
+    }
+  }
+]

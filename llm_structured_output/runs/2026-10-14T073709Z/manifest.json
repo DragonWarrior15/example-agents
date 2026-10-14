@@ -1,0 +1,13 @@
+{
+  "run_id": "2026-10-14T073709Z",
+  "prompt_file": "prompt_v2.md",
+  "model": "qwen3.5:4b-mlx",
+  "dataset_file": "evaluation_data_v1.json",
+  "max_attempts": 2,
+  "prompt_hash": "6e8842af070f6a99babaf870800a7ee4888abd042cd21b1e70939c4db84cdb05",
+  "dataset_hash": "07bb213e3805b055746e45acf9e57e3833d2262ee9f36d02c608adef1d4b1485",
+  "started_at": "2026-10-14T07:37:09.523701+00:00",
+  "status": "completed",
+  "completed_at": "2026-10-14T07:37:37.684789+00:00",
+  "notes": ""
+}

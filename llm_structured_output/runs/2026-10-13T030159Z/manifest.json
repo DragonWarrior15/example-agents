@@ -1,0 +1,13 @@
+{
+  "run_id": "2026-10-13T030159Z",
+  "prompt_file": "prompt_v1.md",
+  "model": "qwen3.5:9b",
+  "dataset_file": "legacy dataset embedded in evaluation_results.jsonl",
+  "max_attempts": 2,
+  "prompt_hash": "03004bc0a73806279f5ba9175ccf237da679271525cc1040adc8ab39160d9a2a",
+  "dataset_hash": "unknown",
+  "started_at": "2026-10-13T03:01:59+00:00",
+  "status": "completed",
+  "completed_at": "2026-10-13T03:01:59+00:00",
+  "notes": ""
+}
